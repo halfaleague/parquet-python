@@ -1,3 +1,7 @@
+
+from libc.string cimport memcpy
+
+import numpy
 import array
 import math
 import struct
@@ -74,8 +78,9 @@ def read_plain(fo, type_, type_length):
 
 
 def read_unsigned_var_int(fo):
-    result = 0
-    shift = 0
+    cdef unsigned int result = 0
+    cdef unsigned int shift = 0
+    cdef unsigned char byte
     while True:
         byte = struct.unpack("<B", fo.read(1))[0]
         result |= ((byte & 0x7F) << shift)
@@ -90,36 +95,63 @@ def byte_width(bit_width):
     return (bit_width + 7) / 8
 
 
-def read_rle(fo, header, bit_width):
+def read_rle(fo, int header, int bit_width):
     """Read a run-length encoded run from the given fo with the given header
     and bit_width.
 
     The count is determined from the header and the width is used to grab the
     value that's repeated. Yields the value repeated count times.
     """
+    
+    cdef int count
+    cdef int width
+    cdef int idata = 0
+
     count = header >> 1
-    zero_data = "\x00\x00\x00\x00"
-    data = ""
-    width = byte_width(bit_width)
-    if width >= 1:
-        data += fo.read(1)
-    if width >= 2:
-        data += fo.read(1)
-    if width >= 3:
-        data += fo.read(1)
-    if width == 4:
-        data += fo.read(1)
-    #odata = data
-    data = data + zero_data[len(data):]
-    #import numpy
-    #nval = numpy.fromstring(data, dtype="int32")[0]
-    value = struct.unpack("<i", data)[0]
-    #if len(odata) and value: 
-    #    import ipdb;ipdb.set_trace()
-    #logger.debug("Read RLE group with value %s of byte-width %s and count %s",
-    #             value, width, count)
-    for i in range(count):
-        yield value
+    # zero_data = "\x00\x00\x00\x00"
+    # data = ""
+    width = (bit_width + 7) / 8
+
+    data = fo.read(width)
+    cdef char *char_view = <char *>data
+    cdef int *data_view = <int *>char_view
+
+    memcpy(&idata, char_view, width)
+
+    out = [idata]*count
+    #out = numpy.empty(count)
+    #out.fill(idata)
+    return out
+    #for i in range(count):
+    #    yield idata
+
+# #    #return out
+# #
+# ##    if width >= 1:
+# ##        data += fo.read(1)
+# ##    if width >= 2:
+# ##        data += fo.read(1)
+# ##    if width >= 3:
+# ##        data += fo.read(1)
+# ##    if width == 4:
+# ##        data += fo.read(1)
+# #
+# #    #memcpy(&idata, data, width)
+# #    #print idata
+# #    odata = data
+# #
+# #    data = data + zero_data[len(data):]
+# #    value = struct.unpack("<i", data)[0]
+# #    if value != 0:
+# #        sw = 4-len(data)
+# #        di = data_view[0] >> sw
+# #        print idata
+# #        print data_view[0], sw, '->', di, 'val', value, 'width',width, len(zero_data)
+# #
+# #    logger.debug("Read RLE group with value %s of byte-width %s and count %s",
+# #                 value, width, count)
+# #    for i in range(count):
+# #        yield value
 
 
 def width_from_max_int(value):
@@ -152,9 +184,9 @@ def read_bitpacked(fo, header, width):
     total = len(raw_bytes)*8;
     while (total >= width):
         # TODO zero-padding could produce extra zero-values
-        # logger.debug("  read bitpacked: width=%s window=(%s %s) b=%s,"
-        #              " current_byte=%s",
-        #              width, bits_wnd_l, bits_wnd_r, bin(b), current_byte)
+        #logger.debug("  read bitpacked: width=%s window=(%s %s) b=%s,"
+        #             " current_byte=%s",
+        #             width, bits_wnd_l, bits_wnd_r, bin(b), current_byte)
         if bits_wnd_r >= 8:
             bits_wnd_r -= 8
             bits_wnd_l -= 8
@@ -163,7 +195,7 @@ def read_bitpacked(fo, header, width):
             res.append((b >> bits_wnd_r) & mask)
             total -= width
             bits_wnd_r += width
-            # logger.debug("  read bitpackage: added: %s", res[-1])
+            #logger.debug("  read bitpackage: added: %s", res[-1])
         elif current_byte + 1 < len(raw_bytes):
             current_byte += 1
             b |= (raw_bytes[current_byte] << bits_wnd_l)
@@ -232,6 +264,6 @@ def read_rle_bit_packed_hybrid(fo, width, length=None):
             res += read_bitpacked(io_obj, header, width)
 
     _t2 = time.time()
-    print 'read_rle_bit_packed_hybrid', _t2 - _t1
+    print 'hi read_rle_bit_packed_hybrid', _t2 - _t1
 
     return res

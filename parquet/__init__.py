@@ -302,6 +302,7 @@ def read_data_page(fo, schema_helper, page_header, column_metadata,
         dict_values_bytes = io_obj.read()
         dict_values_io_obj = cStringIO.StringIO(dict_values_bytes)
         # TODO jcrobak -- not sure that this loop is needed?
+        import cencoding
         while total_seen < daph.num_values:
             values = encoding.read_rle_bit_packed_hybrid(
                 dict_values_io_obj, bit_width, len(dict_values_bytes))
@@ -375,11 +376,7 @@ def _dump(fo, options, out=sys.stdout):
 
         if options.format == 'dataframe':
             import pandas
-            t1 = time.time()
             df = pandas.DataFrame(res)
-            t2 = time.time()
-            print t2 - t1
-            import ipdb;ipdb.set_trace()
             return df
 
         if options.format == "csv" and not options.no_headers:
