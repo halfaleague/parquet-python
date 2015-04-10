@@ -372,6 +372,16 @@ def _dump(fo, options, out=sys.stdout):
                         _get_name(PageType, ph.type)))
         keys = options.col if options.col else [s.name for s in
                                                 footer.schema if s.name in res]
+
+        if options.format == 'dataframe':
+            import pandas
+            t1 = time.time()
+            df = pandas.DataFrame(res)
+            t2 = time.time()
+            print t2 - t1
+            import ipdb;ipdb.set_trace()
+            return df
+
         if options.format == "csv" and not options.no_headers:
             println("\t".join(keys))
         for i in range(rg.num_rows):

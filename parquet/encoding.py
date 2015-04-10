@@ -210,10 +210,16 @@ def read_rle_bit_packed_hybrid(fo, width, length=None):
             return None
         io_obj = cStringIO.StringIO(raw_bytes)
     res = []
+
+    # FIXME slow, cythonize
+    import time
+    _t1 = time.time()
     while io_obj.tell() < length:
         header = read_unsigned_var_int(io_obj)
         if header & 1 == 0:
             res += read_rle(io_obj, header, width)
         else:
             res += read_bitpacked(io_obj, header, width)
+    _t2 = time.time()
+    print 'read_rle_bit_packed_hybrid', _t2 - _t1
     return res
