@@ -90,7 +90,7 @@ def byte_width(bit_width):
     return (bit_width + 7) / 8
 
 
-def read_rle(fo, header, bit_width):
+def read_rle(fo, header, bit_width, debug):
     """Read a run-length encoded run from the given fo with the given header
     and bit_width.
 
@@ -111,7 +111,7 @@ def read_rle(fo, header, bit_width):
         data += fo.read(1)
     data = data + zero_data[len(data):]
     value = struct.unpack("<i", data)[0]
-    if logger.isEnabledFor(logging.DEBUG):
+    if debug:
         logger.debug("Read RLE group with value %s of byte-width %s and count %s",
                   value, width, count)
     for i in range(count):
@@ -128,7 +128,7 @@ def _mask_for_bits(i):
     return (1 << i) - 1
 
 
-def read_bitpacked(fo, header, width):
+def read_bitpacked(fo, header, width, debug):
     """Reads a bitpacked run of the rle/bitpack hybrid.
 
     Supports width >8 (crossing bytes).
@@ -136,7 +136,7 @@ def read_bitpacked(fo, header, width):
     num_groups = header >> 1
     count = num_groups * 8
     byte_count = (width * count)/8
-    if logger.isEnabledFor(logging.DEBUG):
+    if debug:
         logger.debug("Reading a bit-packed run with: %s groups, count %s, bytes %s",
          num_groups, count, byte_count)
     raw_bytes = array.array('B', fo.read(byte_count)).tolist()
@@ -149,7 +149,7 @@ def read_bitpacked(fo, header, width):
     total = len(raw_bytes)*8;
     while (total >= width):
         # TODO zero-padding could produce extra zero-values
-        if logger.isEnabledFor(logging.DEBUG):
+        if debug:
             logger.debug("  read bitpacked: width=%s window=(%s %s) b=%s,"
                      " current_byte=%s",
                      width, bits_wnd_l, bits_wnd_r, bin(b), current_byte)
@@ -161,7 +161,7 @@ def read_bitpacked(fo, header, width):
             res.append((b >> bits_wnd_r) & mask)
             total -= width
             bits_wnd_r += width
-            if logger.isEnabledFor(logging.DEBUG):
+            if debug:
                 logger.debug("  read bitpackage: added: %s", res[-1])
         elif current_byte + 1 < len(raw_bytes):
             current_byte += 1
@@ -214,10 +214,11 @@ def read_rle_bit_packed_hybrid(fo, width, length=None):
             return None
         io_obj = cStringIO.StringIO(raw_bytes)
     res = []
+    debug = logger.isEnabledFor(logging.DEBUG)
     while io_obj.tell() < length:
         header = read_unsigned_var_int(io_obj)
         if header & 1 == 0:
-            res += read_rle(io_obj, header, width)
+            res += read_rle(io_obj, header, width, debug)
         else:
-            res += read_bitpacked(io_obj, header, width)
+            res += read_bitpacked(io_obj, header, width, debug)
     return res
